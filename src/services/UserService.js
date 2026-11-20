@@ -1,5 +1,4 @@
 const JWT = require("jsonwebtoken");
-const { default: jwtDecode } = require("jwt-decode");
 const User = require("../models/user");
 require("dotenv").config();
 
@@ -13,28 +12,9 @@ const getAccessToken = async (user) => {
 const createNewUser = async (userData) => {
   const newUser = await User.findOneAndUpdate({ sub: userData.sub }, userData, {
     upsert: true,
-    new: true,
+    returnDocument: "after",
   });
   return newUser;
-};
-
-const validateJwt = async (token) => {
-  const valid = JWT.verify(
-    token,
-    process.env.GOOGLE_CLIENT_SECRET,
-    (err) => {
-      if (err) {
-        console.log(err);
-        return false;
-      }
-
-      return true;
-    },
-    { algorithms: ["RS256"] },
-  );
-  const currentUser = jwtDecode(token);
-
-  return { valid, currentUser };
 };
 
 const getAllUsers = async () => {
@@ -59,5 +39,4 @@ module.exports = {
   getAllUsers,
   getUserByUsername,
   deleteUserByUsername,
-  validateJwt,
 };

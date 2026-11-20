@@ -1,50 +1,28 @@
 const {
   getAllUsers,
   deleteUserByUsername,
-  validateJwt,
   createNewUser,
-  // getUserByGoogleSub,
 } = require("../services/UserService");
-const jwtDecode = require("jwt-decode");
+const JWT = require("jsonwebtoken");
 require("dotenv").config();
 
 const { getUserByGoogleUserId } = require("../services/OAuthService");
 
 const createUser = async (req, res) => {
   try {
-    const userData = req.headers["authorization"]
-      ? jwtDecode(req.headers["authorization"].split(" ")[1])
-      : null;
+    const user = req.user; // Assuming user info is attached to the request by the OAuth middleware
 
-    if (!userData) {
+    if (!user) {
       return res.status(401).json({ error: "No authorization token provided" });
     }
 
-    const newUser = await createNewUser(userData);
+    const newUser = await createNewUser(user);
     res.send(newUser);
   } catch (e) {
     console.error("Error creating user:", e);
     res
       .status(500)
       .json({ error: "Failed to create user", details: e.message });
-  }
-};
-
-const validateAccessToken = async (req, res) => {
-  try {
-    const token = req.body.accessToken;
-    const validation = await validateJwt(token);
-
-    if (validation.valid) {
-      res.send(validation.currentUser);
-    } else {
-      res.sendStatus(403);
-    }
-  } catch (e) {
-    console.error("Error validating token:", e);
-    res
-      .status(500)
-      .json({ error: "Failed to validate token", details: e.message });
   }
 };
 
@@ -58,9 +36,20 @@ const getUsers = async (req, res, next) => {
   }
 };
 
+const getLoggedInUser = async (req, res, next) => {
+  try {
+    const sub = JWT.verify(req.cookies.token, process.env.JWT_SECRET).sub; // Assuming userId is set in the request by the authentication middleware
+    const user = await getUserByGoogleUserId(sub);
+    return user;
+  } catch (e) {
+    console.error("Error getting logged-in user:", e);
+    res.status(500).json({ error: "Failed to get user", details: e.message });
+  }
+}
+
 const getSpecificUser = async (req, res, next) => {
   try {
-    const sub = req.params.sub;
+    const sub = req.userId; // Assuming userId is set in the request by the authentication middleware
     const user = await getUserByGoogleUserId(sub);
     res.send(user);
   } catch (e) {
@@ -87,5 +76,5 @@ module.exports = {
   getUsers,
   getSpecificUser,
   destroyUser,
-  validateAccessToken,
+  getLoggedInUser,
 };

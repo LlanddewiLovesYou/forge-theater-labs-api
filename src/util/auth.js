@@ -1,35 +1,33 @@
 const { OAuth2Client } = require("google-auth-library");
-const { getAccessToken } = require("../services/UserService");
+const JWT = require("jsonwebtoken");
 require("dotenv").config();
 
-const authenticateToken = async (req, res, next) => {
-  const bearer = req.headers["authorization"];
-  const token = bearer && bearer.split(" ")[1];
-
-  if (!token) {
-    return res.sendStatus(401);
-  }
-
+const getGooglePayload = async (req, res) => {
   const oAuth2Client = new OAuth2Client(
     process.env.GOOGLE_CLIENT_ID,
     process.env.GOOGLE_CLIENT_SECRET,
     "postmessage",
   );
 
-  const verified = await oAuth2Client.verifyIdToken({
-    idToken: token,
+  const ticket = await oAuth2Client.verifyIdToken({
+    idToken: req.body.credential,
     audience: process.env.GOOGLE_CLIENT_ID,
   });
 
-  req.user = verified.getPayload();
+  return ticket.getPayload();
+}
 
-  next();
+const signLocalJWT = async (req, res) => {
+  const accessToken = await JWT.sign(req.user, process.env.JWT_SECRET, {
+    expiresIn: "1h",
+  });
+
+  res.cookie("token", accessToken, {
+    httpOnly: true,
+    secure: process.env.NODE_ENV === "production", // set to true in production
+    sameSite: "lax",
+    maxAge: 3600000, // 1 hour
+  });
 };
 
-const sendGoogleAuthResponse = async (user, res) => {
-  const accessToken = await getAccessToken(user.toJSON());
-  res.redirect("http://localhost:5173/home");
-  res.send({ accessToken, currentUser: user });
-};
-
-module.exports = { authenticateToken, sendGoogleAuthResponse };
+module.exports = { getGooglePayload, signLocalJWT };

@@ -3,21 +3,19 @@ const {
   getUsers,
   getSpecificUser,
   destroyUser,
-  validateAccessToken,
   createUser,
 } = require("../api/UserController");
-const { authenticateToken } = require("../util/auth");
+const { requireAuthMiddleware } = require("../middleware");
 const { checkPermissions } = require("../util/permissions");
 
 const UserRouter = express.Router();
 
-UserRouter.post("/", authenticateToken, createUser);
-UserRouter.post("/validate", validateAccessToken);
-UserRouter.get("/", authenticateToken, checkPermissions("admin"), getUsers);
-UserRouter.get("/:sub", authenticateToken, getSpecificUser);
+UserRouter.post("/", requireAuthMiddleware, createUser);
+UserRouter.get("/", requireAuthMiddleware, checkPermissions("admin"), getUsers);
+UserRouter.get("/:sub", requireAuthMiddleware, getSpecificUser);
 UserRouter.delete(
   "/:username",
-  authenticateToken,
+  requireAuthMiddleware,
   checkPermissions("admin"),
   destroyUser,
 );

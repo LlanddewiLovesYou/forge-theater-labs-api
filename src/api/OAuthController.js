@@ -1,44 +1,21 @@
 const User = require("../models/user");
-const { OAuth2Client } = require("google-auth-library");
-const {
-  getUserByGoogleUserId,
-  getUserDataFromGoogle,
-} = require("../services/OAuthService");
-const { sendGoogleAuthResponse } = require("../util/auth");
+const { getGooglePayload, signLocalJWT } = require("../util/auth");
+const { createNewUser } = require("../services/UserService");
 require("dotenv").config();
 
-// const getAuthTokenAndUserFromGoogle = async (req, res) => {
-//   const code = req.query.code;
-//   try {
-//     const oAuth2Client = new OAuth2Client(
-//       process.env.GOOGLE_CLIENT_ID,
-//       process.env.GOOGLE_CLIENT_SECRET,
-//       process.env.GOOGLE_REDIRECT_URI,
-//     );
+const loginWithGoogle = async (req, res) => {
+  const { sub, email, name, picture, email_verified } = await getGooglePayload(req, res);
+  if (!email_verified) {
+    return res.status(401).json({ error: "Email not verified" });
+  }
+  const user = { sub, email, name, picture };
+  req.user = user; // Attach user info to request for downstream middleware
+  const newUser = await createNewUser(user); // Create user in the database if not exists
+  await signLocalJWT(req, res); // Sign JWT and set cookie
 
-//     const response = await oAuth2Client.getToken(code);
-//     const access_token = response.tokens.access_token;
-
-//     await oAuth2Client.setCredentials(response.tokens);
-//     const googleUser = await getUserDataFromGoogle(access_token);
-
-//     const existingUser = await getUserByGoogleUserId(googleUser.sub);
-
-//     if (existingUser) {
-//       sendGoogleAuthResponse(existingUser, res);
-//     } else {
-//       const user = await User.create({
-//         sub: googleUser.sub,
-//         isAdmin: false,
-//       });
-//       sendGoogleAuthResponse(user, res);
-//     }
-//   } catch (error) {
-//     console.error("Error during OAuth process:", error);
-//     res.status(500).json({ error: "Internal Server Error" });
-//   }
-// };
+  res.status(200).json({ user: newUser, message: "User authenticated and JWT issued" });
+}
 
 module.exports = {
-  // getAuthTokenAndUserFromGoogle,
+  loginWithGoogle,
 };
