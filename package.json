@@ -7,7 +7,9 @@
     "start": "node index.js",
     "dev": "nodemon -r dotenv/config index.js",
     "docker": "docker compose up --build",
-    "test": "jest"
+    "test": "jest",
+    "format": "prettier --write .",
+    "format:check": "prettier --check ."
   },
   "author": "Ian Del Duca",
   "license": "ISC",
